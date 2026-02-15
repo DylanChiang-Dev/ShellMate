@@ -1,35 +1,69 @@
 // Session commands placeholder
-use crate::error::AppError;
-use crate::state::{AppState, Session};
 use tauri::State;
 use uuid::Uuid;
+use crate::{AppState, AppError, state::Session};
 
 #[tauri::command]
-pub async fn create_local_session(state: State<'_, AppState>) -> Result<Session, AppError> {
+pub async fn create_local_session(state: State<'_, AppState>) -> Result<String, AppError> {
     let session = Session::new_local();
+    let id = session.id;
+
     let mut sessions = state.sessions.lock().await;
-    sessions.insert(session.id, session.clone());
-    Ok(session)
+    sessions.insert(id, session);
+
+    log::info!("Created local session: {}", id);
+    Ok(id.to_string())
 }
 
 #[tauri::command]
-pub async fn create_ssh_session(_profile_id: String, state: State<'_, AppState>) -> Result<Session, AppError> {
-    let profile_uuid = Uuid::parse_str(&_profile_id).map_err(|e| AppError::ProfileNotFound(e.to_string()))?;
+pub async fn create_ssh_session(
+    state: State<'_, AppState>,
+    profile_id: String,
+) -> Result<String, AppError> {
+    let profile_uuid = Uuid::parse_str(&profile_id)
+        .map_err(|_| AppError::ProfileNotFound(profile_id))?;
+
     let session = Session::new_ssh(profile_uuid);
+    let id = session.id;
+
     let mut sessions = state.sessions.lock().await;
-    sessions.insert(session.id, session.clone());
-    Ok(session)
+    sessions.insert(id, session);
+
+    log::info!("Created SSH session: {}", id);
+    Ok(id.to_string())
 }
 
 #[tauri::command]
-pub async fn close_session(_session_id: String, state: State<'_, AppState>) -> Result<bool, AppError> {
-    let uuid = Uuid::parse_str(&_session_id).map_err(|e| AppError::SessionNotFound(e.to_string()))?;
+pub async fn close_session(
+    state: State<'_, AppState>,
+    session_id: String,
+) -> Result<(), AppError> {
+    let uuid = Uuid::parse_str(&session_id)
+        .map_err(|_| AppError::SessionNotFound(session_id))?;
+
     let mut sessions = state.sessions.lock().await;
     sessions.remove(&uuid);
-    Ok(true)
+
+    log::info!("Closed session: {}", uuid);
+    Ok(())
 }
 
 #[tauri::command]
-pub async fn send_input(_session_id: String, _input: String) -> Result<bool, AppError> {
-    Ok(true)
+pub async fn send_input(
+    state: State<'_, AppState>,
+    session_id: String,
+    input: String,
+) -> Result<(), AppError> {
+    let uuid = Uuid::parse_str(&session_id)
+        .map_err(|_| AppError::SessionNotFound(session_id.clone()))?;
+
+    let sessions = state.sessions.lock().await;
+    let _session = sessions.get(&uuid)
+        .ok_or_else(|| AppError::SessionNotFound(session_id.clone()))?;
+
+    // For now, this is a placeholder
+    // Actual PTY/SSH channel writing happens here
+    log::debug!("Sending input to session {}: {}", uuid, input);
+
+    Ok(())
 }
