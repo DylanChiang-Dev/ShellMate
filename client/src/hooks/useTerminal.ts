@@ -23,8 +23,7 @@ export function useTerminal({ profileId, onDisconnect }: UseTerminalOptions) {
       wsRef.current.close()
     }
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const wsUrl = `${protocol}//${window.location.host}/ws?type=terminal`
+    const wsUrl = `/ws?type=terminal`
     const ws = new WebSocket(wsUrl)
 
     ws.onopen = () => {

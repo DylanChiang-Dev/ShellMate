@@ -19,8 +19,7 @@ export function useSftp({ }: UseSftpOptions) {
       wsRef.current.close()
     }
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const wsUrl = `${protocol}//${window.location.host}/ws?type=file`
+    const wsUrl = `/ws?type=file`
     const ws = new WebSocket(wsUrl)
 
     ws.onopen = () => {
