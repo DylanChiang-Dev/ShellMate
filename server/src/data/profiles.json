@@ -1,0 +1,18 @@
+{
+  "profiles": [
+    {
+      "id": "96f78c85-ecde-428a-83aa-8e0d2a3b4d65",
+      "name": "123",
+      "host": "114.34.164.126",
+      "port": 60211,
+      "username": "root",
+      "password": "787e7f51d4fcb197cede49d2df215111:1a361b97f0b086c353be03d95d285211",
+      "group": "default",
+      "tags": [],
+      "createdAt": "2026-02-15T13:07:42.125Z"
+    }
+  ],
+  "groups": [
+    "default"
+  ]
+}

@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  ssh-terminal:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - JWT_SECRET=your-secret-key-change-in-production
+      - ENCRYPTION_KEY=32-character-encryption-key!!
+    volumes:
+      - ./data:/app/src/data
+    restart: unless-stopped
