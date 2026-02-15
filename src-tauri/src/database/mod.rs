@@ -31,6 +31,16 @@ pub struct CommandSnippet {
     pub updated_at: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HostKey {
+    pub host: String,
+    pub port: u16,
+    pub algo: String,
+    pub fingerprint: String,
+    pub raw_key: String,
+    pub first_seen_at: String,
+}
+
 pub struct Database {
     conn: Connection,
 }
@@ -183,5 +193,51 @@ impl Database {
         })?;
 
         commands.collect::<Result<Vec<_>, _>>().map_err(AppError::Database)
+    }
+
+    pub fn save_host_key(&self, host_key: &HostKey) -> Result<(), AppError> {
+        self.conn.execute(
+            "INSERT OR REPLACE INTO host_keys (host, port, algo, fingerprint, raw_key, first_seen_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                host_key.host,
+                host_key.port,
+                host_key.algo,
+                host_key.fingerprint,
+                host_key.raw_key,
+                host_key.first_seen_at,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_host_key(&self, host: &str, port: u16) -> Result<Option<HostKey>, AppError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT host, port, algo, fingerprint, raw_key, first_seen_at
+             FROM host_keys WHERE host = ?1 AND port = ?2"
+        )?;
+
+        let mut rows = stmt.query(params![host, port])?;
+
+        if let Some(row) = rows.next()? {
+            Ok(Some(HostKey {
+                host: row.get(0)?,
+                port: row.get(1)?,
+                algo: row.get(2)?,
+                fingerprint: row.get(3)?,
+                raw_key: row.get(4)?,
+                first_seen_at: row.get(5)?,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn delete_host_key(&self, host: &str, port: u16) -> Result<(), AppError> {
+        self.conn.execute(
+            "DELETE FROM host_keys WHERE host = ?1 AND port = ?2",
+            params![host, port],
+        )?;
+        Ok(())
     }
 }
