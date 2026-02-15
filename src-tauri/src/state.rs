@@ -3,8 +3,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-pub mod session;
-pub use session::Session;
+pub use crate::session::Session;
 
 pub struct AppState {
     pub sessions: Arc<Mutex<HashMap<Uuid, Session>>>,

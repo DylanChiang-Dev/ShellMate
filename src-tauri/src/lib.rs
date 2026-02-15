@@ -4,6 +4,7 @@ mod vault;
 mod database;
 mod ssh;
 mod commands;
+mod session;
 
 pub use error::AppError;
 pub use state::AppState;
