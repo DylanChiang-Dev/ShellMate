@@ -18,6 +18,7 @@
 - 多檔編輯 tab、diff/比較、全局搜尋替換
 - Jump/Bastion、Port Forward、Agent Forward、Tmux 整合等進階 SSH 能力
 - App Store 上架相容
+- 快捷鍵定義 (MVP 只用右鍵選單)
 
 ---
 
@@ -34,15 +35,20 @@
 
 ## 3) UI/交互
 
-**固定三區佈局**:
-- **左側 Sidebar**: 上半部 Profiles 列表 + 快速搜尋；下半部遠端檔案樹 (顯示當前聚焦 pane 的主機)
-- **右上**: 單檔編輯器 (顯示 host:path，保存狀態，保存按鈕/快捷鍵)
-- **右下**: 終端區 (Tab + split panes；聚焦 pane 決定左側檔案樹與編輯器對應主機)
+**固定四區佈局**:
+- **左側 Sidebar**: 上半部 Profiles 列表 + 快速搜尋；下半部命令片段列表 (點擊插入當前終端輸入列)
+- **右上**: 檔案樹 (顯示當前聚焦 pane 的主機) + 單檔編輯器
+- **右下**: 終端區 (Tab + split panes；聚焦 pane 決定右側檔案樹與編輯器對應主機)
+
+**分屏操作**:
+- 透過右鍵選單執行「水平分割」或「垂直分割」
+- SSH session 和本機 shell 都支援分屏
 
 **關鍵交互規則**:
 - 「聚焦 pane」是全局焦點來源：檔案樹與編輯器自動切到該 pane 的主機
 - 若聚焦 pane 是本機 shell：檔案樹區顯示占位提示 (不顯示本機檔案)
-- 常用命令：面板/快捷鍵呼出，點擊後只插入到聚焦 pane 的輸入列
+- 常用命令：固定顯示在左側 Sidebar 下半部，點擊後只插入到聚焦 pane 的輸入列
+- Host Key 管理：在編輯 Profile 時顯示關聯的 Host Key
 
 ---
 
@@ -88,6 +94,10 @@ Rust Core:
 - `command`
 - `tags?`
 - `updated_at`
+
+**命令片段 UI**:
+- 固定顯示在左側 Sidebar 下半部
+- 點擊後只插入到聚焦 pane 的輸入列，不自動執行
 
 ### HostKey
 - `host`
@@ -143,8 +153,8 @@ Rust Core:
   - 使用者提交 → 後端回覆
 
 **Host Key**:
-- 預設：未知 host key 自動保存後放行
-- 設定頁提供：查看/刪除 host keys；可切換為「首次提示確認指紋」
+- 首次連線時顯示指紋讓用戶確認後才保存
+- Host Key 管理：編輯 Profile 時顯示關聯的 Host Key，可刪除
 
 ---
 
@@ -153,13 +163,27 @@ Rust Core:
 - **Local session**: Rust 開 PTY，啟動使用者 shell (預設 zsh，可設)
 - **SSH session**: 建立連線後開互動 shell channel (帶 PTY)，將字節流映射到 xterm
 - **Pane/Tab**: 前端只管理佈局；後端管理 session 生命週期
+- **Local PTY 功能**:
+  - 基本輸入輸出
+  - 系統剪貼簿整合 (複製/貼上)
+  - xterm.js 搜尋功能 (`Cmd+F`)
+  - 字體大小調整
+
+## 8.1) Tab + Pane 管理
+
+- 每個 Tab 可包含多個 pane (水平或垂直分割)
+- 分屏透過右鍵選單操作
+- SSH session 和本機 shell 都支援分屏
+- 聚焦 pane 決定檔案樹與編輯器對應的主機
 
 ---
 
 ## 9) 遠端檔案樹 + 編輯器 + 保存 (含 sudo)
 
-**檔案樹 (SFTP)**:
-- list、stat、mkdir、rename、remove、upload、download
+**檔案樹功能 (SFTP)**:
+- list、stat、mkdir、rename、remove
+- upload (上傳檔案到遠端)
+- download (從遠端下載檔案)
 
 **打開檔案**:
 - 優先 SFTP 讀取

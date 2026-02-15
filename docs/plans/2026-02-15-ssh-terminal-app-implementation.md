@@ -10,7 +10,7 @@
 - Tauri 2.x (desktop shell)
 - Rust (backend: ssh2, portable-pty, rusqlite, keyring, chacha20poly1305)
 - React 18 + TypeScript
-- xterm.js (terminal rendering)
+- xterm.js (terminal rendering) + addons: clipboard, search, web-links
 - Monaco Editor (file editing)
 - TailwindCSS (styling)
 
@@ -985,6 +985,154 @@ git commit -m "feat: add profile CRUD commands"
 
 ---
 
+### Task 7.5: Host Key Management
+
+**Files:**
+- Create: `src-tauri/src/database/hostkey.rs`
+- Create: `src-tauri/src/commands/hostkey.rs`
+- Modify: `src-tauri/src/commands/mod.rs`
+
+**Step 1: Create database/hostkey.rs**
+
+```rust
+use rusqlite::{params, Connection};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HostKey {
+    pub host: String,
+    pub port: u16,
+    pub algo: String,
+    pub fingerprint: String,
+    pub raw_key: String,
+    pub first_seen_at: String,
+}
+
+pub struct HostKeyDatabase<'a> {
+    conn: &'a Connection,
+}
+
+impl<'a> HostKeyDatabase<'a> {
+    pub fn new(conn: &'a Connection) -> Self {
+        Self { conn }
+    }
+
+    pub fn save_host_key(&self, host_key: &HostKey) -> Result<(), AppError> {
+        self.conn.execute(
+            "INSERT OR REPLACE INTO host_keys (host, port, algo, fingerprint, raw_key, first_seen_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                host_key.host,
+                host_key.port,
+                host_key.algo,
+                host_key.fingerprint,
+                host_key.raw_key,
+                host_key.first_seen_at,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_host_key(&self, host: &str, port: u16) -> Result<Option<HostKey>, AppError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT host, port, algo, fingerprint, raw_key, first_seen_at
+             FROM host_keys WHERE host = ?1 AND port = ?2"
+        )?;
+
+        let mut rows = stmt.query(params![host, port])?;
+
+        if let Some(row) = rows.next()? {
+            Ok(Some(HostKey {
+                host: row.get(0)?,
+                port: row.get(1)?,
+                algo: row.get(2)?,
+                fingerprint: row.get(3)?,
+                raw_key: row.get(4)?,
+                first_seen_at: row.get(5)?,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn delete_host_key(&self, host: &str, port: u16) -> Result<(), AppError> {
+        self.conn.execute(
+            "DELETE FROM host_keys WHERE host = ?1 AND port = ?2",
+            params![host, port],
+        )?;
+        Ok(())
+    }
+}
+```
+
+**Step 2: Create commands/hostkey.rs**
+
+```rust
+use crate::{AppError, database::Database};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HostKeyInfo {
+    pub host: String,
+    pub port: u16,
+    pub algo: String,
+    pub fingerprint: String,
+    pub first_seen_at: String,
+}
+
+#[tauri::command]
+pub async fn get_host_key(host: String, port: u16) -> Result<Option<HostKeyInfo>, AppError> {
+    let db = Database::new()?;
+    let hostkey_db = db::hostkey::HostKeyDatabase::new(&db.conn);
+
+    match hostkey_db.get_host_key(&host, port)? {
+        Some(hk) => Ok(Some(HostKeyInfo {
+            host: hk.host,
+            port: hk.port,
+            algo: hk.algo,
+            fingerprint: hk.fingerprint,
+            first_seen_at: hk.first_seen_at,
+        })),
+        None => Ok(None),
+    }
+}
+
+#[tauri::command]
+pub async fn delete_host_key(host: String, port: u16) -> Result<(), AppError> {
+    let db = Database::new()?;
+    let hostkey_db = db::hostkey::HostKeyDatabase::new(&db.conn);
+    hostkey_db.delete_host_key(&host, port)?;
+    log::info!("Deleted host key for {}:{}", host, port);
+    Ok(())
+}
+```
+
+**Step 3: Update commands/mod.rs**
+
+```rust
+pub mod vault;
+pub mod profile;
+pub mod session;
+pub mod hostkey;
+pub mod export;
+```
+
+**Step 4: Run cargo check**
+
+```bash
+cd src-tauri && cargo check
+```
+
+**Step 5: Commit**
+
+```bash
+git add src-tauri/
+git commit -m "feat: add host key management commands"
+```
+
+---
+
 ## Phase 4: SSH/SFTP
 
 ### Task 8: SSH Session Management
@@ -1247,6 +1395,150 @@ cd src-tauri && cargo check
 ```bash
 git add src-tauri/
 git commit -m "feat: add session management commands"
+```
+
+---
+
+### Task 9.5: Local PTY Implementation
+
+**Files:**
+- Create: `src-tauri/src/pty/mod.rs`
+- Modify: `src-tauri/src/commands/session.rs`
+
+**Step 1: Add portable-pty to Cargo.toml**
+
+```toml
+portable-pty = "0.8"
+```
+
+**Step 2: Create pty/mod.rs**
+
+```rust
+use portable_pty::{native_pty_system, CommandBuilder, PtySize, PtyPair};
+use std::sync::Arc;
+use tokio::sync::mpsc;
+use uuid::Uuid;
+use std::io::{Read, Write};
+
+pub struct LocalPty {
+    pty_pair: PtyPair,
+    reader: Box<dyn Read + Send>,
+    writer: Box<dyn Write + Send>,
+}
+
+impl LocalPty {
+    pub fn new() -> Result<Self, AppError> {
+        let pty_system = native_pty_system();
+
+        let pair = pty_system
+            .openpty(PtySize {
+                rows: 24,
+                cols: 80,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
+            .map_err(|e| AppError::Ssh(format!("Failed to open PTY: {}", e)))?;
+
+        let reader = pair.slave.try_clone_reader()
+            .map_err(|e| AppError::Ssh(format!("Failed to clone PTY reader: {}", e)))?;
+        let writer = pair.slave.take_writer()
+            .map_err(|e| AppError::Ssh(format!("Failed to get PTY writer: {}", e)))?;
+
+        Ok(Self {
+            pty_pair: pair,
+            reader: Box::new(reader),
+            writer: Box::new(writer),
+        })
+    }
+
+    pub fn spawn_shell(&mut self, shell: &str) -> Result<(), AppError> {
+        let mut cmd = CommandBuilder::new(shell);
+        cmd.env("TERM", "xterm-256color");
+
+        let _child = self.pty_pair.slave.spawn_command(cmd)
+            .map_err(|e| AppError::Ssh(format!("Failed to spawn shell: {}", e)))?;
+
+        Ok(())
+    }
+
+    pub fn write(&mut self, data: &[u8]) -> Result<(), AppError> {
+        self.writer.write_all(data)
+            .map_err(|e| AppError::Ssh(format!("Failed to write to PTY: {}", e)))?;
+        self.writer.flush()
+            .map_err(|e| AppError::Ssh(format!("Failed to flush PTY: {}", e)))?;
+        Ok(())
+    }
+
+    pub fn read(&mut self, buf: &mut [u8]) -> Result<usize, AppError> {
+        use std::io::Read;
+        let n = self.reader.read(buf)
+            .map_err(|e| AppError::Ssh(format!("Failed to read from PTY: {}", e)))?;
+        Ok(n)
+    }
+
+    pub fn resize(&mut self, rows: u16, cols: u16) -> Result<(), AppError> {
+        self.pty_pair.slave.resize(PtySize {
+            rows,
+            cols,
+            pixel_width: 0,
+            pixel_height: 0,
+        }).map_err(|e| AppError::Ssh(format!("Failed to resize PTY: {}", e)))
+    }
+}
+```
+
+**Step 3: Update session.rs with PTY commands**
+
+```rust
+#[tauri::command]
+pub async fn write_to_pty(
+    state: State<'_, AppState>,
+    session_id: String,
+    data: String,
+) -> Result<(), AppError> {
+    let uuid = Uuid::parse_str(&session_id)
+        .map_err(|_| AppError::SessionNotFound(session_id))?;
+
+    let sessions = state.sessions.lock().await;
+    let session = sessions.get(&uuid)
+        .ok_or_else(|| AppError::SessionNotFound(session_id.clone()))?;
+
+    if let SessionType::Local = session.session_type {
+        // Write to local PTY
+        // Implementation detail: need to store PTY in state
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn resize_pty(
+    state: State<'_, AppState>,
+    session_id: String,
+    rows: u16,
+    cols: u16,
+) -> Result<(), AppError> {
+    let uuid = Uuid::parse_str(&session_id)
+        .map_err(|_| AppError::SessionNotFound(session_id))?;
+
+    // Resize PTY
+    Ok(())
+}
+```
+
+**Step 4: Add xterm.js addons to package.json**
+
+```json
+"@xterm/addon-clipboard": "^0.0.4",
+"@xterm/addon-search": "^0.13.0",
+"@xterm/addon-web-links": "^0.11.0"
+```
+
+**Step 5: Commit**
+
+```bash
+git add src-tauri/ package.json
+git commit -m "feat: implement local PTY with clipboard and search support"
 ```
 
 ---
@@ -1671,6 +1963,436 @@ git commit -m "feat: add Monaco editor component"
 
 ---
 
+### Task 13.5: Tab + Pane Management
+
+**Files:**
+- Create: `src/types/tab.ts`
+- Create: `src/components/TabBar.tsx`
+- Create: `src/components/SplitPane.tsx`
+- Modify: `src/App.tsx`
+
+**Step 1: Create types/tab.ts**
+
+```typescript
+export interface Tab {
+  id: string
+  title: string
+  panes: Pane[]
+  activePaneId: string
+}
+
+export interface Pane {
+  id: string
+  sessionId: string | null
+  type: 'local' | 'ssh'
+}
+
+export type SplitDirection = 'horizontal' | 'vertical'
+
+export interface SplitNode {
+  id: string
+  direction: SplitDirection
+  children: [SplitNode | Pane, SplitNode | Pane]
+}
+```
+
+**Step 2: Create TabBar component**
+
+```typescript
+import { Tab } from '../types/tab'
+
+interface TabBarProps {
+  tabs: Tab[]
+  activeTabId: string
+  onTabSelect: (id: string) => void
+  onTabClose: (id: string) => void
+  onNewTab: () => void
+}
+
+export default function TabBar({ tabs, activeTabId, onTabSelect, onTabClose, onNewTab }: TabBarProps) {
+  return (
+    <div className="flex bg-gray-800 border-b border-gray-700">
+      {tabs.map(tab => (
+        <div
+          key={tab.id}
+          className={`flex items-center px-3 py-2 cursor-pointer ${
+            activeTabId === tab.id ? 'bg-gray-700 text-white' : 'text-gray-400 hover:bg-gray-700'
+          }`}
+          onClick={() => onTabSelect(tab.id)}
+        >
+          <span>{tab.title}</span>
+          <button
+            onClick={(e) => { e.stopPropagation(); onTabClose(tab.id) }}
+            className="ml-2 text-gray-400 hover:text-white"
+          >
+            ×
+          </button>
+        </div>
+      ))}
+      <button
+        onClick={onNewTab}
+        className="px-3 py-2 text-gray-400 hover:text-white"
+      >
+        +
+      </button>
+    </div>
+  )
+}
+```
+
+**Step 3: Create SplitPane component**
+
+```typescript
+import { Pane, SplitNode, SplitDirection } from '../types/tab'
+
+interface SplitPaneProps {
+  node: SplitNode | Pane
+  renderPane: (pane: Pane) => React.ReactNode
+}
+
+export default function SplitPane({ node, renderPane }: SplitPaneProps) {
+  if ('sessionId' in node) {
+    return <div className="h-full">{renderPane(node)}</div>
+  }
+
+  const direction = node.direction
+  const isHorizontal = direction === 'horizontal'
+
+  return (
+    <div className={`flex h-full ${isHorizontal ? 'flex-row' : 'flex-col'}`}>
+      <div className={isHorizontal ? 'w-1/2' : 'h-1/2'}>
+        <SplitPane node={node.children[0]} renderPane={renderPane} />
+      </div>
+      <div className="bg-gray-700" style={isHorizontal ? { width: 2 } : { height: 2 }} />
+      <div className={isHorizontal ? 'w-1/2' : 'h-1/2'}>
+        <SplitPane node={node.children[1]} renderPane={renderPane} />
+      </div>
+    </div>
+  )
+}
+```
+
+**Step 4: Create context menu for split**
+
+```typescript
+// Add right-click menu to TerminalPane
+const handleContextMenu = (e: React.MouseEvent) => {
+  e.preventDefault()
+  // Show context menu with options: Split Horizontal, Split Vertical, Close Pane
+}
+```
+
+**Step 5: Commit**
+
+```bash
+git add src/types/ src/components/TabBar.tsx src/components/SplitPane.tsx
+git commit -m "feat: add tab and split pane management"
+```
+
+---
+
+### Task 13.6: Command Snippets UI
+
+**Files:**
+- Create: `src/components/CommandSnippets.tsx`
+- Modify: `src/components/Sidebar.tsx`
+
+**Step 1: Create CommandSnippets component**
+
+```typescript
+import { useState, useEffect } from 'react'
+import { invoke } from '@tauri-apps/api/core'
+
+interface CommandSnippet {
+  id: string
+  title: string
+  command: string
+}
+
+interface CommandSnippetsProps {
+  onInsertCommand: (command: string) => void
+}
+
+export default function CommandSnippets({ onInsertCommand }: CommandSnippetsProps) {
+  const [snippets, setSnippets] = useState<CommandSnippet[]>([])
+  const [showNew, setShowNew] = useState(false)
+  const [newSnippet, setNewSnippet] = useState({ title: '', command: '' })
+
+  useEffect(() => {
+    loadSnippets()
+  }, [])
+
+  async function loadSnippets() {
+    try {
+      const result = await invoke('get_commands')
+      setSnippets(result as CommandSnippet[])
+    } catch (e) {
+      console.error('Failed to load snippets:', e)
+    }
+  }
+
+  async function createSnippet() {
+    try {
+      await invoke('create_command', {
+        title: newSnippet.title,
+        command: newSnippet.command,
+      })
+      setShowNew(false)
+      setNewSnippet({ title: '', command: '' })
+      loadSnippets()
+    } catch (e) {
+      console.error('Failed to create snippet:', e)
+    }
+  }
+
+  return (
+    <div className="border-t border-gray-700 p-2">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm font-semibold">Commands</span>
+        <button
+          onClick={() => setShowNew(!showNew)}
+          className="text-xs bg-blue-600 px-2 py-0.5 rounded"
+        >
+          + New
+        </button>
+      </div>
+
+      {showNew && (
+        <div className="space-y-1 mb-2">
+          <input
+            placeholder="Title"
+            value={newSnippet.title}
+            onChange={(e) => setNewSnippet({ ...newSnippet, title: e.target.value })}
+            className="w-full bg-gray-700 px-2 py-1 rounded text-xs"
+          />
+          <input
+            placeholder="Command"
+            value={newSnippet.command}
+            onChange={(e) => setNewSnippet({ ...newSnippet, command: e.target.value })}
+            className="w-full bg-gray-700 px-2 py-1 rounded text-xs"
+          />
+          <button
+            onClick={createSnippet}
+            className="w-full bg-green-600 px-2 py-1 rounded text-xs"
+          >
+            Add
+          </button>
+        </div>
+      )}
+
+      <div className="space-y-1 overflow-y-auto max-h-40">
+        {snippets.map((snippet) => (
+          <div
+            key={snippet.id}
+            onClick={() => onInsertCommand(snippet.command)}
+            className="p-2 bg-gray-700 rounded cursor-pointer hover:bg-gray-600 text-xs"
+          >
+            <div className="font-medium">{snippet.title}</div>
+            <div className="text-gray-400 truncate">{snippet.command}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+```
+
+**Step 2: Add command snippets to Sidebar**
+
+Update Sidebar to include CommandSnippets component in the lower section.
+
+**Step 3: Commit**
+
+```bash
+git add src/components/CommandSnippets.tsx src/components/Sidebar.tsx
+git commit -m "feat: add command snippets UI in sidebar"
+```
+
+---
+
+### Task 13.7: File Tree Component
+
+**Files:**
+- Create: `src/components/FileTree.tsx`
+- Create: `src/hooks/useFileTree.ts`
+- Modify: `src/App.tsx`
+
+**Step 1: Create types for file tree**
+
+```typescript
+// src/types/fileTree.ts
+export interface FileEntry {
+  name: string
+  path: string
+  isDirectory: boolean
+  size: number
+  children?: FileEntry[]
+}
+```
+
+**Step 2: Create useFileTree hook**
+
+```typescript
+import { useState } from 'react'
+import { invoke } from '@tauri-apps/api/core'
+import { FileEntry } from '../types/fileTree'
+
+export function useFileTree(sessionId: string | null) {
+  const [entries, setEntries] = useState<FileEntry[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function loadDirectory(path: string) {
+    if (!sessionId) return
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      const result = await invoke('list_directory', {
+        sessionId,
+        path,
+      })
+      setEntries(result as FileEntry[])
+    } catch (e) {
+      setError(e as string)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function createFile(name: string, path: string) {
+    await invoke('create_file', { sessionId, name, path })
+    loadDirectory(path)
+  }
+
+  async function createDirectory(name: string, path: string) {
+    await invoke('create_directory', { sessionId, name, path })
+    loadDirectory(path)
+  }
+
+  async function deleteEntry(path: string) {
+    await invoke('delete_entry', { sessionId, path })
+    loadDirectory(path)
+  }
+
+  async function renameEntry(oldPath: string, newName: string) {
+    await invoke('rename_entry', { sessionId, oldPath, newName })
+  }
+
+  return {
+    entries,
+    loading,
+    error,
+    loadDirectory,
+    createFile,
+    createDirectory,
+    deleteEntry,
+    renameEntry,
+  }
+}
+```
+
+**Step 3: Create FileTree component**
+
+```typescript
+import { useState } from 'react'
+import { FileEntry } from '../types/fileTree'
+import { useFileTree } from '../hooks/useFileTree'
+
+interface FileTreeProps {
+  sessionId: string | null
+  onFileSelect: (path: string) => void
+}
+
+export default function FileTree({ sessionId, onFileSelect }: FileTreeProps) {
+  const [currentPath, setCurrentPath] = useState('/')
+  const {
+    entries,
+    loading,
+    error,
+    loadDirectory,
+    createFile,
+    createDirectory,
+    deleteEntry,
+    renameEntry,
+  } = useFileTree(sessionId)
+
+  useState(() => {
+    if (sessionId) {
+      loadDirectory(currentPath)
+    }
+  }, [sessionId])
+
+  if (!sessionId) {
+    return (
+      <div className="p-4 text-gray-400 text-sm">
+        Select a remote session to view files
+      </div>
+    )
+  }
+
+  if (loading) {
+    return <div className="p-4 text-gray-400">Loading...</div>
+  }
+
+  if (error) {
+    return <div className="p-4 text-red-400">{error}</div>
+  }
+
+  return (
+    <div className="h-full flex flex-col">
+      <div className="p-2 border-b border-gray-700 flex items-center">
+        <button
+          onClick={() => {
+            const parent = currentPath.split('/').slice(0, -1).join('/') || '/'
+            setCurrentPath(parent)
+            loadDirectory(parent)
+          }}
+          className="mr-2 text-gray-400 hover:text-white"
+        >
+          ←
+        </button>
+        <span className="text-sm text-gray-300">{currentPath}</span>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-2">
+        {entries.map((entry) => (
+          <div
+            key={entry.path}
+            className="flex items-center p-1 hover:bg-gray-700 rounded cursor-pointer"
+            onClick={() => {
+              if (entry.isDirectory) {
+                setCurrentPath(entry.path)
+                loadDirectory(entry.path)
+              } else {
+                onFileSelect(entry.path)
+              }
+            }}
+            onContextMenu={(e) => {
+              e.preventDefault()
+              // Show context menu for rename/delete
+            }}
+          >
+            <span className="mr-2">{entry.isDirectory ? '📁' : '📄'}</span>
+            <span className="text-sm">{entry.name}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+```
+
+**Step 4: Commit**
+
+```bash
+git add src/types/fileTree.ts src/components/FileTree.tsx src/hooks/useFileTree.ts
+git commit -m "feat: add file tree component with SFTP operations"
+```
+
+---
+
 ## Phase 6: Import/Export
 
 ### Task 14: Import/Export Commands
@@ -1816,14 +2538,29 @@ git commit -m "chore: build MVP release"
 
 ## Summary
 
-This implementation plan is organized into 7 phases with 15 tasks:
+This implementation plan is organized into 7 phases with 18 tasks:
 
 1. **Project Scaffold** - Tauri + React setup
 2. **Vault & Security** - Encryption + Keychain
-3. **Database & Profiles** - SQLite + Profile CRUD
-4. **SSH/SFTP** - Connection + file operations
-5. **Frontend** - React components with xterm.js + Monaco
+3. **Database & Profiles** - SQLite + Profile CRUD + Host Key Management
+4. **SSH/SFTP** - Connection + file operations + Local PTY
+5. **Frontend** - React components with xterm.js + Monaco + Tab/Pane + FileTree + Commands
 6. **Import/Export** - Encrypted backup
 7. **Build** - Verification
 
 Each task is designed to be completed in 2-5 minutes with test-driven development approach.
+
+---
+
+## Updated MVP Acceptance Checklist
+
+- [ ] 多 tab + 分屏，聚焦切換正確
+- [ ] 分屏操作 (右鍵選單) 可用
+- [ ] Local shell 可用 (基本輸入輸出 + 剪貼簿 + 搜尋 + 字體調整)
+- [ ] SSH profile 新建/連線成功 (password、key)
+- [ ] 檔案樹基本操作可用 (list/新增/刪除/改名/上傳/下載)
+- [ ] 打開/編輯/保存可用 (含 sudo 保存)
+- [ ] 命令片段顯示在側邊欄，點擊可插入到輸入列
+- [ ] Host Key 首次連線時提示確認
+- [ ] Host Key 在 Profile 編輯時可查看/刪除
+- [ ] 匯入/匯出可完成且可在另一台機器復原
