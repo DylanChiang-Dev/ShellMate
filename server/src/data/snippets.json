@@ -1,4 +1,35 @@
 {
   "snippets": [],
-  "groups": ["system", "docker", "git"]
+  "groups": [
+    {
+      "id": "system",
+      "name": "系统",
+      "parentId": null,
+      "expanded": true
+    },
+    {
+      "id": "system-process",
+      "name": "进程管理",
+      "parentId": "system",
+      "expanded": false
+    },
+    {
+      "id": "system-network",
+      "name": "网络相关",
+      "parentId": "system",
+      "expanded": true
+    },
+    {
+      "id": "docker",
+      "name": "Docker",
+      "parentId": null,
+      "expanded": true
+    },
+    {
+      "id": "git",
+      "name": "Git",
+      "parentId": null,
+      "expanded": true
+    }
+  ]
 }

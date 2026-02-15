@@ -24,6 +24,54 @@ router.get('/groups', async (req, res) => {
   }
 })
 
+router.post('/groups', async (req, res) => {
+  try {
+    const { name, parentId } = req.body
+
+    if (!name) {
+      return res.status(400).json({ error: 'Group name required' })
+    }
+
+    const group = await snippetService.addSnippetGroup(name, parentId || null)
+    res.json(group)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.put('/groups/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const { name, parentId, expanded } = req.body
+
+    const updates = {}
+    if (name !== undefined) updates.name = name
+    if (parentId !== undefined) updates.parentId = parentId
+    if (expanded !== undefined) updates.expanded = expanded
+
+    const group = await snippetService.updateSnippetGroup(id, updates)
+    res.json(group)
+  } catch (err) {
+    if (err.message === 'Group not found') {
+      return res.status(404).json({ error: err.message })
+    }
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.delete('/groups/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const result = await snippetService.deleteSnippetGroup(id)
+    res.json(result)
+  } catch (err) {
+    if (err.message === 'Group not found') {
+      return res.status(404).json({ error: err.message })
+    }
+    res.status(500).json({ error: err.message })
+  }
+})
+
 router.post('/', async (req, res) => {
   try {
     const { title, command, group } = req.body
