@@ -20,7 +20,8 @@ export function useSftp({ }: UseSftpOptions) {
     }
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const ws = new WebSocket(`${protocol}//${window.location.host}/ws?type=file`)
+    const wsUrl = `${protocol}//localhost:3000/ws?type=file`
+    const ws = new WebSocket(wsUrl)
 
     ws.onopen = () => {
       ws.send(JSON.stringify({ type: 'connect', profileId: pId }))
@@ -140,7 +141,9 @@ export function useSftp({ }: UseSftpOptions) {
 
   const disconnect = useCallback(() => {
     if (wsRef.current) {
-      wsRef.current.send(JSON.stringify({ type: 'disconnect' }))
+      if (wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'disconnect' }))
+      }
       wsRef.current.close()
       wsRef.current = null
     }

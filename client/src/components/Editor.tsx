@@ -31,7 +31,8 @@ export default function FileEditor({ filePath, profileId, onSave }: EditorProps)
     setLoading(true)
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const ws = new WebSocket(`${protocol}//${window.location.host}/ws?type=file`)
+    const wsUrl = `${protocol}//localhost:3000/ws?type=file`
+    const ws = new WebSocket(wsUrl)
 
     ws.onopen = () => {
       ws.send(JSON.stringify({ type: 'connect', profileId }))
@@ -63,7 +64,8 @@ export default function FileEditor({ filePath, profileId, onSave }: EditorProps)
     setSaving(true)
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const ws = new WebSocket(`${protocol}//${window.location.host}/ws?type=file`)
+    const wsUrl = `${protocol}//localhost:3000/ws?type=file`
+    const ws = new WebSocket(wsUrl)
 
     ws.onopen = () => {
       ws.send(JSON.stringify({ type: 'connect', profileId }))

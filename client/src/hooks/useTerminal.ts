@@ -24,7 +24,8 @@ export function useTerminal({ profileId, onDisconnect }: UseTerminalOptions) {
     }
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const ws = new WebSocket(`${protocol}//${window.location.host}/ws?type=terminal`)
+    const wsUrl = `${protocol}//localhost:3000/ws?type=terminal`
+    const ws = new WebSocket(wsUrl)
 
     ws.onopen = () => {
       ws.send(JSON.stringify({ type: 'connect', profileId: pId }))
@@ -63,8 +64,11 @@ export function useTerminal({ profileId, onDisconnect }: UseTerminalOptions) {
   }, [onDisconnect])
 
   const disconnect = useCallback(() => {
-    if (wsRef.current) {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: 'disconnect' }))
+      wsRef.current.close()
+      wsRef.current = null
+    } else if (wsRef.current) {
       wsRef.current.close()
       wsRef.current = null
     }
