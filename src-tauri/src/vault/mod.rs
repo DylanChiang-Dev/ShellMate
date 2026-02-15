@@ -1,4 +1,5 @@
 mod crypto;
+mod keychain;
 
 use std::path::PathBuf;
 use std::fs;
@@ -6,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 pub use crypto::{encrypt_vault, decrypt_vault};
+pub use keychain::{store_master_key, get_master_key, delete_master_key};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VaultEntry {
