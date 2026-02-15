@@ -1,4 +1,4 @@
-import { Profile, Snippet } from '../types'
+import { Profile, Snippet, Server, ServerGroup, Command, CommandGroup } from '../types'
 
 const getToken = () => localStorage.getItem('token')
 
@@ -69,4 +69,38 @@ export const api = {
 
   deleteSnippet: (id: string) =>
     request<void>(`/api/snippets/${id}`, { method: 'DELETE' }),
+}
+
+// Server groups
+export const serverGroups = {
+  getAll: () => request<ServerGroup[]>('/api/profiles/groups'),
+  create: (name: string) => request<ServerGroup>('/api/profiles/groups', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) }),
+  update: (id: string, data: Partial<ServerGroup>) => request<ServerGroup>(`/api/profiles/groups/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
+  delete: (id: string) => request<void>(`/api/profiles/groups/${id}`, { method: 'DELETE' }),
+}
+
+// Server (using new Server type with groupId)
+export const servers = {
+  getAll: () => request<Server[]>('/api/profiles'),
+  create: (data: Omit<Server, 'id'>) => request<Server>('/api/profiles', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
+  update: (id: string, data: Partial<Server>) => request<Server>(`/api/profiles/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
+  delete: (id: string) => request<void>(`/api/profiles/${id}`, { method: 'DELETE' }),
+}
+
+// Command groups (hierarchical)
+export const commandGroups = {
+  getAll: () => request<CommandGroup[]>('/api/snippets/groups'),
+  create: (name: string, parentId: string | null) =>
+    request<CommandGroup>('/api/snippets/groups', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, parentId }) }),
+  update: (id: string, data: Partial<CommandGroup>) =>
+    request<CommandGroup>(`/api/snippets/groups/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
+  delete: (id: string) => request<void>(`/api/snippets/groups/${id}`, { method: 'DELETE' }),
+}
+
+// Commands/snippet (using new Command type with groupId)
+export const commands = {
+  getAll: () => request<Command[]>('/api/snippets'),
+  create: (data: Omit<Command, 'id'>) => request<Command>('/api/snippets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
+  update: (id: string, data: Partial<Command>) => request<Command>(`/api/snippets/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
+  delete: (id: string) => request<void>(`/api/snippets/${id}`, { method: 'DELETE' }),
 }
