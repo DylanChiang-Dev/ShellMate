@@ -71,11 +71,32 @@ router.delete('/:id', async (req, res) => {
 
 router.post('/groups', async (req, res) => {
   try {
-    const { group } = req.body
-    if (!group) {
+    const { name } = req.body
+    if (!name) {
       return res.status(400).json({ error: 'Group name required' })
     }
-    await profileService.addGroup(group)
+    const group = await profileService.addGroup(name)
+    res.json(group)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.put('/groups/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const { name, expanded } = req.body
+    const group = await profileService.updateGroup(id, { name, expanded })
+    res.json(group)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.delete('/groups/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    await profileService.deleteGroup(id)
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: err.message })

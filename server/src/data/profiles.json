@@ -13,6 +13,10 @@
     }
   ],
   "groups": [
-    "default"
+    {
+      "id": "default",
+      "name": "未分组",
+      "expanded": true
+    }
   ]
 }

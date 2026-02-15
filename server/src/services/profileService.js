@@ -85,10 +85,47 @@ export async function getGroups() {
   return data.groups || []
 }
 
-export async function addGroup(group) {
+export async function addGroup(name) {
   const data = await getProfilesRaw()
-  if (!data.groups.includes(group)) {
-    data.groups.push(group)
-    await jsonfile.writeFile(profilesFile, data, { spaces: 2 })
+  const newGroup = {
+    id: crypto.randomUUID(),
+    name,
+    expanded: true
   }
+  data.groups.push(newGroup)
+  await jsonfile.writeFile(profilesFile, data, { spaces: 2 })
+  return newGroup
+}
+
+export async function updateGroup(id, updates) {
+  const data = await getProfilesRaw()
+  const index = data.groups.findIndex(g => g.id === id)
+  if (index === -1) throw new Error('Group not found')
+
+  data.groups[index] = { ...data.groups[index], ...updates }
+  await jsonfile.writeFile(profilesFile, data, { spaces: 2 })
+  return data.groups[index]
+}
+
+export async function deleteGroup(id) {
+  const data = await getProfilesRaw()
+  const group = data.groups.find(g => g.id === id)
+  if (!group) throw new Error('Group not found')
+
+  // Cannot delete the 'default' group
+  if (id === 'default') {
+    throw new Error('Cannot delete default group')
+  }
+
+  // Move profiles in this group to 'default'
+  data.profiles = data.profiles.map(p => {
+    if (p.group === id) {
+      return { ...p, group: 'default' }
+    }
+    return p
+  })
+
+  // Remove the group
+  data.groups = data.groups.filter(g => g.id !== id)
+  await jsonfile.writeFile(profilesFile, data, { spaces: 2 })
 }
