@@ -26,7 +26,7 @@ function App() {
       const result = await invoke('get_profiles')
       setProfiles(result as Profile[])
     } catch (e) {
-      console.error('Failed to load profiles:', e)
+      console.error('載入設定檔失敗:', e)
     }
   }
 
@@ -35,7 +35,7 @@ function App() {
       const sessionId = await invoke('create_ssh_session', { profileId })
       setActiveSession(sessionId as string)
     } catch (e) {
-      console.error('Failed to connect:', e)
+      console.error('連線失敗:', e)
     }
   }
 
@@ -44,12 +44,12 @@ function App() {
       const sessionId = await invoke('create_local_session')
       setActiveSession(sessionId as string)
     } catch (e) {
-      console.error('Failed to create local session:', e)
+      console.error('建立本地連線失敗:', e)
     }
   }
 
   function handleInsertCommand(command: string) {
-    console.log('Insert command:', command)
+    console.log('插入命令:', command)
     // TODO: Insert command to active terminal
   }
 
@@ -71,7 +71,7 @@ function App() {
         <div className="h-1/3 border-b border-gray-700">
           <FileTree
             sessionId={activeSession}
-            onFileSelect={(path) => console.log('Selected file:', path)}
+            onFileSelect={(path) => console.log('選擇檔案:', path)}
           />
         </div>
 
@@ -92,7 +92,7 @@ function App() {
           onClick={handleNewLocalSession}
           className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg"
         >
-          + New Local Session
+          + 新增本地終端
         </button>
       </div>
     </div>

@@ -18,13 +18,13 @@ export default function FileTree({ sessionId, onFileSelect }: FileTreeProps) {
   if (!sessionId) {
     return (
       <div className="p-4 text-gray-400 text-sm">
-        Select a remote session to view files
+        請先選擇一個遠端連線來查看檔案
       </div>
     )
   }
 
   if (loading) {
-    return <div className="p-4 text-gray-400">Loading...</div>
+    return <div className="p-4 text-gray-400">載入中...</div>
   }
 
   if (error) {

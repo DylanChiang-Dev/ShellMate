@@ -37,46 +37,46 @@ export default function Sidebar({ profiles, activeSession, onSessionSelect }: Si
       setShowNewProfile(false)
       setNewProfile({ name: '', host: '', port: 22, username: '', authMethod: 'password' })
     } catch (e) {
-      console.error('Failed to create profile:', e)
+      console.error('建立設定檔失敗:', e)
     }
   }
 
   return (
-    <div className="w-64 bg-gray-800 border-r border-gray-700 flex flex-col">
+    <div className="flex-1 flex flex-col min-h-0">
       <div className="p-3 border-b border-gray-700">
         <div className="flex items-center justify-between mb-2">
-          <span className="font-semibold">SSH Profiles</span>
+          <span className="font-semibold">SSH 連線</span>
           <button
             onClick={() => setShowNewProfile(!showNewProfile)}
             className="text-sm bg-blue-600 px-2 py-1 rounded hover:bg-blue-700"
           >
-            + New
+            + 新增
           </button>
         </div>
 
         {showNewProfile && (
           <div className="space-y-2 mb-2">
             <input
-              placeholder="Name"
+              placeholder="名稱"
               value={newProfile.name}
               onChange={(e) => setNewProfile({ ...newProfile, name: e.target.value })}
               className="w-full bg-gray-700 px-2 py-1 rounded text-sm"
             />
             <input
-              placeholder="Host"
+              placeholder="主機"
               value={newProfile.host}
               onChange={(e) => setNewProfile({ ...newProfile, host: e.target.value })}
               className="w-full bg-gray-700 px-2 py-1 rounded text-sm"
             />
             <input
-              placeholder="Port"
+              placeholder="連接埠"
               type="number"
               value={newProfile.port}
               onChange={(e) => setNewProfile({ ...newProfile, port: parseInt(e.target.value) })}
               className="w-full bg-gray-700 px-2 py-1 rounded text-sm"
             />
             <input
-              placeholder="Username"
+              placeholder="使用者名稱"
               value={newProfile.username}
               onChange={(e) => setNewProfile({ ...newProfile, username: e.target.value })}
               className="w-full bg-gray-700 px-2 py-1 rounded text-sm"
@@ -85,7 +85,7 @@ export default function Sidebar({ profiles, activeSession, onSessionSelect }: Si
               onClick={createProfile}
               className="w-full bg-green-600 px-2 py-1 rounded text-sm hover:bg-green-700"
             >
-              Create
+              建立
             </button>
           </div>
         )}

@@ -25,7 +25,7 @@ export default function CommandSnippets({ onInsertCommand }: CommandSnippetsProp
       const result = await invoke('get_commands')
       setSnippets(result as CommandSnippet[])
     } catch (e) {
-      console.error('Failed to load snippets:', e)
+      console.error('載入命令片段失敗:', e)
     }
   }
 
@@ -39,32 +39,32 @@ export default function CommandSnippets({ onInsertCommand }: CommandSnippetsProp
       setNewSnippet({ title: '', command: '' })
       loadSnippets()
     } catch (e) {
-      console.error('Failed to create snippet:', e)
+      console.error('建立命令片段失敗:', e)
     }
   }
 
   return (
     <div className="border-t border-gray-700 p-2">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-semibold">Commands</span>
+        <span className="text-sm font-semibold">常用命令</span>
         <button
           onClick={() => setShowNew(!showNew)}
           className="text-xs bg-blue-600 px-2 py-0.5 rounded"
         >
-          + New
+          + 新增
         </button>
       </div>
 
       {showNew && (
         <div className="space-y-1 mb-2">
           <input
-            placeholder="Title"
+            placeholder="標題"
             value={newSnippet.title}
             onChange={(e) => setNewSnippet({ ...newSnippet, title: e.target.value })}
             className="w-full bg-gray-700 px-2 py-1 rounded text-xs"
           />
           <input
-            placeholder="Command"
+            placeholder="命令"
             value={newSnippet.command}
             onChange={(e) => setNewSnippet({ ...newSnippet, command: e.target.value })}
             className="w-full bg-gray-700 px-2 py-1 rounded text-xs"
@@ -73,7 +73,7 @@ export default function CommandSnippets({ onInsertCommand }: CommandSnippetsProp
             onClick={createSnippet}
             className="w-full bg-green-600 px-2 py-1 rounded text-xs"
           >
-            Add
+            新增
           </button>
         </div>
       )}
