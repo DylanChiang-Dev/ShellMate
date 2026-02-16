@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Server, ServerGroup } from '../types';
 import { ContextMenu } from './ContextMenu';
 import { ServerModal } from './ServerModal';
+import { GroupModal } from './GroupModal';
 import { serverGroups, servers } from '../services/api';
 
 interface ServerPanelProps {
@@ -12,8 +13,11 @@ export const ServerPanel: React.FC<ServerPanelProps> = ({ onConnect }) => {
   const [groups, setGroups] = useState<ServerGroup[]>([]);
   const [serversList, setServersList] = useState<Server[]>([]);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; server: Server } | null>(null);
+  const [groupContextMenu, setGroupContextMenu] = useState<{ x: number; y: number; group: ServerGroup } | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingServer, setEditingServer] = useState<Server | null>(null);
+  const [groupModalOpen, setGroupModalOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<ServerGroup | null>(null);
 
   useEffect(() => {
     loadData();
@@ -39,6 +43,45 @@ export const ServerPanel: React.FC<ServerPanelProps> = ({ onConnect }) => {
   const handleContextMenu = (e: React.MouseEvent, server: Server) => {
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY, server });
+  };
+
+  const handleGroupContextMenu = (e: React.MouseEvent, group: ServerGroup) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setGroupContextMenu({ x: e.clientX, y: e.clientY, group });
+  };
+
+  const handleAddGroup = () => {
+    setEditingGroup(null);
+    setGroupModalOpen(true);
+    setGroupContextMenu(null);
+  };
+
+  const handleEditGroup = () => {
+    if (groupContextMenu) {
+      setEditingGroup(groupContextMenu.group);
+      setGroupModalOpen(true);
+      setGroupContextMenu(null);
+    }
+  };
+
+  const handleDeleteGroup = async () => {
+    if (groupContextMenu && confirm('确定要删除这个分组吗？分组内的服务器将移至未分组。')) {
+      await serverGroups.delete(groupContextMenu.group.id);
+      loadData();
+      setGroupContextMenu(null);
+    }
+  };
+
+  const handleSaveGroup = async (name: string) => {
+    if (editingGroup) {
+      await serverGroups.update(editingGroup.id, { name });
+    } else {
+      await serverGroups.create(name);
+    }
+    setGroupModalOpen(false);
+    setEditingGroup(null);
+    loadData();
   };
 
   const handleConnect = () => {
@@ -82,12 +125,21 @@ export const ServerPanel: React.FC<ServerPanelProps> = ({ onConnect }) => {
     <div className="h-full flex flex-col">
       <div className="p-3 border-b border-gray-700 flex justify-between items-center">
         <h2 className="font-semibold">服务器</h2>
-        <button
-          onClick={() => { setEditingServer(null); setModalOpen(true); }}
-          className="text-blue-400 hover:text-blue-300 text-sm"
-        >
-          + 添加
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => { setEditingGroup(null); setGroupModalOpen(true); }}
+            className="text-blue-400 hover:text-blue-300 text-sm"
+            title="添加分组"
+          >
+            + 分组
+          </button>
+          <button
+            onClick={() => { setEditingServer(null); setModalOpen(true); }}
+            className="text-blue-400 hover:text-blue-300 text-sm"
+          >
+            + 添加
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-2">
@@ -96,6 +148,7 @@ export const ServerPanel: React.FC<ServerPanelProps> = ({ onConnect }) => {
             <div
               className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-700/50 cursor-pointer"
               onClick={() => toggleGroup(group.id)}
+              onContextMenu={(e) => handleGroupContextMenu(e, group)}
             >
               <span className="text-gray-400">
                 {group.expanded ? '▼' : '▶'}
@@ -142,12 +195,34 @@ export const ServerPanel: React.FC<ServerPanelProps> = ({ onConnect }) => {
         />
       )}
 
+      {groupContextMenu && (
+        <ContextMenu
+          x={groupContextMenu.x}
+          y={groupContextMenu.y}
+          items={[
+            { label: '添加分组', onClick: handleAddGroup },
+            { label: '编辑分组', onClick: handleEditGroup },
+            { label: '删除分组', onClick: handleDeleteGroup, danger: true },
+          ]}
+          onClose={() => setGroupContextMenu(null)}
+        />
+      )}
+
       <ServerModal
         isOpen={modalOpen}
         server={editingServer}
         groups={groups}
         onSave={handleSave}
         onClose={() => { setModalOpen(false); setEditingServer(null); }}
+      />
+
+      <GroupModal
+        isOpen={groupModalOpen}
+        type="server"
+        groups={groups}
+        editingGroup={editingGroup}
+        onSave={handleSaveGroup}
+        onClose={() => { setGroupModalOpen(false); setEditingGroup(null); }}
       />
     </div>
   );

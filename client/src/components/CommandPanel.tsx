@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Command, CommandGroup } from '../types';
 import { ContextMenu } from './ContextMenu';
 import { CommandModal } from './CommandModal';
+import { GroupModal } from './GroupModal';
 import { commandGroups, commands } from '../services/api';
 
 interface CommandPanelProps {
@@ -12,8 +13,12 @@ export const CommandPanel: React.FC<CommandPanelProps> = ({ onExecute }) => {
   const [groups, setGroups] = useState<CommandGroup[]>([]);
   const [commandsList, setCommandsList] = useState<Command[]>([]);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; command: Command } | null>(null);
+  const [groupContextMenu, setGroupContextMenu] = useState<{ x: number; y: number; group: CommandGroup; parentId: string | null } | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCommand, setEditingCommand] = useState<Command | null>(null);
+  const [groupModalOpen, setGroupModalOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<CommandGroup | null>(null);
+  const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -39,6 +44,48 @@ export const CommandPanel: React.FC<CommandPanelProps> = ({ onExecute }) => {
   const handleContextMenu = (e: React.MouseEvent, command: Command) => {
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY, command });
+  };
+
+  const handleGroupContextMenu = (e: React.MouseEvent, group: CommandGroup, parentId: string | null) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setGroupContextMenu({ x: e.clientX, y: e.clientY, group, parentId });
+  };
+
+  const handleAddGroup = () => {
+    setEditingGroup(null);
+    setSelectedParentId(groupContextMenu?.parentId || null);
+    setGroupModalOpen(true);
+    setGroupContextMenu(null);
+  };
+
+  const handleEditGroup = () => {
+    if (groupContextMenu) {
+      setEditingGroup(groupContextMenu.group);
+      setSelectedParentId(groupContextMenu.parentId);
+      setGroupModalOpen(true);
+      setGroupContextMenu(null);
+    }
+  };
+
+  const handleDeleteGroup = async () => {
+    if (groupContextMenu && confirm('确定要删除这个分组吗？子分组和命令将被一并删除。')) {
+      await commandGroups.delete(groupContextMenu.group.id);
+      loadData();
+      setGroupContextMenu(null);
+    }
+  };
+
+  const handleSaveGroup = async (name: string, parentId?: string | null) => {
+    if (editingGroup) {
+      await commandGroups.update(editingGroup.id, { name, parentId: parentId || null });
+    } else {
+      await commandGroups.create(name, parentId || null);
+    }
+    setGroupModalOpen(false);
+    setEditingGroup(null);
+    setSelectedParentId(null);
+    loadData();
   };
 
   const handleExecute = () => {
@@ -93,6 +140,7 @@ export const CommandPanel: React.FC<CommandPanelProps> = ({ onExecute }) => {
           <div
             className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-700/50 cursor-pointer"
             onClick={() => hasChildren && toggleGroup(group.id)}
+            onContextMenu={(e) => handleGroupContextMenu(e, group, parentId)}
           >
             {hasChildren && (
               <span className="text-gray-400">
@@ -127,12 +175,21 @@ export const CommandPanel: React.FC<CommandPanelProps> = ({ onExecute }) => {
     <div className="h-full flex flex-col">
       <div className="p-3 border-b border-gray-700 flex justify-between items-center">
         <h2 className="font-semibold">命令</h2>
-        <button
-          onClick={() => { setEditingCommand(null); setModalOpen(true); }}
-          className="text-blue-400 hover:text-blue-300 text-sm"
-        >
-          + 添加
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => { setEditingGroup(null); setSelectedParentId(null); setGroupModalOpen(true); }}
+            className="text-blue-400 hover:text-blue-300 text-sm"
+            title="添加分组"
+          >
+            + 分组
+          </button>
+          <button
+            onClick={() => { setEditingCommand(null); setModalOpen(true); }}
+            className="text-blue-400 hover:text-blue-300 text-sm"
+          >
+            + 添加
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-2">
@@ -152,12 +209,35 @@ export const CommandPanel: React.FC<CommandPanelProps> = ({ onExecute }) => {
         />
       )}
 
+      {groupContextMenu && (
+        <ContextMenu
+          x={groupContextMenu.x}
+          y={groupContextMenu.y}
+          items={[
+            { label: '添加子分组', onClick: handleAddGroup },
+            { label: '编辑分组', onClick: handleEditGroup },
+            { label: '删除分组', onClick: handleDeleteGroup, danger: true },
+          ]}
+          onClose={() => setGroupContextMenu(null)}
+        />
+      )}
+
       <CommandModal
         isOpen={modalOpen}
         command={editingCommand}
         groups={groups}
         onSave={handleSave}
         onClose={() => { setModalOpen(false); setEditingCommand(null); }}
+      />
+
+      <GroupModal
+        isOpen={groupModalOpen}
+        type="command"
+        groups={groups}
+        editingGroup={editingGroup}
+        parentId={selectedParentId}
+        onSave={handleSaveGroup}
+        onClose={() => { setGroupModalOpen(false); setEditingGroup(null); setSelectedParentId(null); }}
       />
     </div>
   );
