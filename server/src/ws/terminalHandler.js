@@ -75,7 +75,18 @@ export function handleTerminalConnection(ws, req) {
             })
           } catch (connErr) {
             console.error('SSH Connection Failed:', connErr)
-            ws.send(JSON.stringify({ type: 'error', message: connErr.message || 'SSH Connection Failed' }))
+            // 提供更友好的错误消息
+            let errorMessage = connErr.message || 'SSH Connection Failed'
+            if (errorMessage.includes('Timed out')) {
+              errorMessage = '连接超时 - 请检查服务器地址、端口是否正确，以及防火墙是否放行该端口'
+            } else if (errorMessage.includes('ECONNREFUSED')) {
+              errorMessage = '连接被拒绝 - 请检查端口是否正确，SSH 服务是否运行'
+            } else if (errorMessage.includes('ENOTFOUND')) {
+              errorMessage = '服务器地址无效 - 请检查主机名或 IP 地址是否正确'
+            } else if (errorMessage.includes('authentication')) {
+              errorMessage = '认证失败 - 请检查用户名和密码是否正确'
+            }
+            ws.send(JSON.stringify({ type: 'error', message: errorMessage }))
           }
           break
         }

@@ -1,0 +1,9 @@
+services:
+  shellmate:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./server/src/data:/app/server/src/data
+      - ./server/.env:/app/.env
+    restart: always

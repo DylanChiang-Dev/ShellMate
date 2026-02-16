@@ -6,6 +6,40 @@
       "command": "v2bx",
       "group": "system",
       "createdAt": "2026-02-16T00:33:11.399Z"
+    },
+    {
+      "id": "b0319908-d3e6-4575-b378-308689941292",
+      "title": "修改為台北時區",
+      "command": "timedatectl set-timezone Asia/Taipei",
+      "group": "default",
+      "createdAt": "2026-02-16T10:56:46.098Z",
+      "name": "修改為台北時區",
+      "groupId": "default"
+    },
+    {
+      "id": "84d305ce-ca04-4351-8484-4d930d735c13",
+      "title": "Debian 12 升級",
+      "command": "apt update && apt -y full-upgrade && apt -y autoremove --purge && apt -y autoclean",
+      "group": "default",
+      "createdAt": "2026-02-16T10:58:18.691Z",
+      "name": "Debian 12 升級",
+      "groupId": "default"
+    },
+    {
+      "id": "4ba579a1-b10d-4d96-96e5-03ceaa9abf11",
+      "title": "安裝dPanel",
+      "command": "curl -sSL https://dpanel.cc/quick.sh -o quick.sh && bash quick.sh",
+      "group": "default",
+      "createdAt": "2026-02-16T11:00:35.553Z",
+      "name": "安裝dPanel",
+      "groupId": "default"
+    },
+    {
+      "id": "2fe9ea42-5a7c-4352-8b5a-58efdc21f954",
+      "title": "清屏",
+      "command": "clear",
+      "group": "default",
+      "createdAt": "2026-02-16T11:00:57.263Z"
     }
   ],
   "groups": []

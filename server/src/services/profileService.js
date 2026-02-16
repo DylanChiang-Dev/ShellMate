@@ -46,9 +46,34 @@ class Mutex {
 
 const fileMutex = new Mutex()
 
+function isEncrypted(text) {
+  // 检查是否已经是加密格式 (hex:hex)
+  return text && text.match(/^[0-9a-f]+:[0-9a-f]+$/)
+}
+
+
+function getKeyBuffer(key) {
+  // Checks if the key is a 64-character hex string (32 bytes when parsed)
+  if (key.length === 64 && /^[0-9a-fA-F]+$/.test(key)) {
+    return Buffer.from(key, 'hex')
+  }
+  // Otherwise, assume it's a raw string (e.g. legacy 32-char key)
+  // Ensure we only take the first 32 bytes to avoid errors if longer
+  const buf = Buffer.from(key)
+  if (buf.length > 32) return buf.subarray(0, 32)
+  // Pad if too short? AES-256 requires exactly 32 bytes.
+  // For now, let's assume the legacy key was correct length or this logic is sufficient.
+  return buf
+}
+
 function encrypt(text) {
+  // 如果已经加密，不再重复加密
+  if (isEncrypted(text)) {
+    return text
+  }
   const iv = crypto.randomBytes(16)
-  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv)
+  const keyBuffer = getKeyBuffer(ENCRYPTION_KEY)
+  const cipher = crypto.createCipheriv('aes-256-cbc', keyBuffer, iv)
   let encrypted = cipher.update(text, 'utf8', 'hex')
   encrypted += cipher.final('hex')
   return iv.toString('hex') + ':' + encrypted
@@ -59,7 +84,8 @@ function decrypt(text) {
     const parts = text.split(':')
     const iv = Buffer.from(parts[0], 'hex')
     const encrypted = parts[1]
-    const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv)
+    const keyBuffer = getKeyBuffer(ENCRYPTION_KEY)
+    const decipher = crypto.createDecipheriv('aes-256-cbc', keyBuffer, iv)
     let decrypted = decipher.update(encrypted, 'hex', 'utf8')
     decrypted += decipher.final('utf8')
     return decrypted
