@@ -9,7 +9,13 @@ router.use(authMiddleware)
 router.get('/', async (req, res) => {
   try {
     const profiles = await profileService.getProfiles()
-    res.json(profiles)
+    // Map 'group' to 'groupId' for frontend compatibility
+    const mappedProfiles = profiles.map(p => ({
+      ...p,
+      groupId: p.group || p.groupId,
+      authType: p.authType || 'password'
+    }))
+    res.json(mappedProfiles)
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -26,7 +32,7 @@ router.get('/groups', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { name, host, port, username, password, group, tags } = req.body
+    const { name, host, port, username, password, groupId, tags } = req.body
 
     if (!name || !host || !username) {
       return res.status(400).json({ error: 'Name, host, username required' })
@@ -38,7 +44,7 @@ router.post('/', async (req, res) => {
       port: port || 22,
       username,
       password: password || '',
-      group: group || 'default',
+      group: groupId || 'default',
       tags: tags || []
     })
 

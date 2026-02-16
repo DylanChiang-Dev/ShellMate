@@ -1,13 +1,6 @@
 {
   "snippets": [
     {
-      "id": "216af7c5-1e14-4ce0-b2af-c685ac5f641f",
-      "title": "test command",
-      "command": "echo hello",
-      "group": "default",
-      "createdAt": "2026-02-16T00:31:08.855Z"
-    },
-    {
       "id": "60b00c27-4847-45e3-af35-98cedfbc8e6d",
       "title": "v2bx",
       "command": "v2bx",
@@ -15,36 +8,5 @@
       "createdAt": "2026-02-16T00:33:11.399Z"
     }
   ],
-  "groups": [
-    {
-      "id": "system",
-      "name": "系统",
-      "parentId": null,
-      "expanded": true
-    },
-    {
-      "id": "system-process",
-      "name": "进程管理",
-      "parentId": "system",
-      "expanded": false
-    },
-    {
-      "id": "system-network",
-      "name": "网络相关",
-      "parentId": "system",
-      "expanded": true
-    },
-    {
-      "id": "docker",
-      "name": "Docker",
-      "parentId": null,
-      "expanded": true
-    },
-    {
-      "id": "git",
-      "name": "Git",
-      "parentId": null,
-      "expanded": true
-    }
-  ]
+  "groups": []
 }

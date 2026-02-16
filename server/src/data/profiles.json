@@ -1,21 +1,21 @@
 {
   "profiles": [
     {
-      "id": "96f78c85-ecde-428a-83aa-8e0d2a3b4d65",
+      "id": "9d6bdbb3-3ff6-45a4-b8a5-5214ea4e9930",
       "name": "123",
       "host": "114.34.164.126",
       "port": 60211,
       "username": "root",
-      "password": "787e7f51d4fcb197cede49d2df215111:1a361b97f0b086c353be03d95d285211",
+      "password": "aab03f49cb00ce826938a275c80599c5:0d06e0f0e222729ab356992fdf5e0f34",
       "group": "default",
       "tags": [],
-      "createdAt": "2026-02-15T13:07:42.125Z"
+      "createdAt": "2026-02-16T00:58:39.570Z"
     }
   ],
   "groups": [
     {
       "id": "default",
-      "name": "未分组",
+      "name": "默认分组",
       "expanded": true
     }
   ]
