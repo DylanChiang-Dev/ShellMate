@@ -32,12 +32,45 @@ export const ServerPanel: React.FC<ServerPanelProps> = ({ onConnect }) => {
     setServersList(serversData);
   };
 
-  const toggleGroup = async (groupId: string) => {
-    const group = groups.find(g => g.id === groupId);
-    if (group) {
-      await serverGroups.update(groupId, { expanded: !group.expanded });
-      loadData();
+  const updateTimeouts = React.useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const pendingStates = React.useRef<Record<string, boolean>>({});
+
+  const toggleGroup = (groupId: string) => {
+    // Update UI immediately (Optimistic)
+    setGroups(prev => prev.map(g => {
+      if (g.id === groupId) {
+        const nextExpanded = !g.expanded;
+
+        // Store intended state in ref to survive closures/renders
+        pendingStates.current[groupId] = nextExpanded;
+
+        return { ...g, expanded: nextExpanded };
+      }
+      return g;
+    }));
+
+    // Clear existing timeout
+    if (updateTimeouts.current[groupId]) {
+      clearTimeout(updateTimeouts.current[groupId]);
     }
+
+    // Set new timeout using the state from ref
+    updateTimeouts.current[groupId] = setTimeout(async () => {
+      const finalExpanded = pendingStates.current[groupId];
+      if (finalExpanded === undefined) return;
+
+      try {
+        await serverGroups.update(groupId, { expanded: finalExpanded });
+        delete pendingStates.current[groupId];
+        delete updateTimeouts.current[groupId];
+      } catch (e) {
+        console.error('Failed to sync group state', e);
+        // Revert UI if sync fails
+        setGroups(prev => prev.map(g =>
+          g.id === groupId ? { ...g, expanded: !finalExpanded } : g
+        ));
+      }
+    }, 300); // 300ms debounce
   };
 
   const handleContextMenu = (e: React.MouseEvent, server: Server) => {

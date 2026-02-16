@@ -82,7 +82,7 @@ export function useTerminal({ profileId, onDisconnect }: UseTerminalOptions) {
     }
 
     ws.onclose = (event) => {
-      console.log('WebSocket closed:', event.code, event.reason)
+      console.log(`WebSocket closed: ${event.code} ${event.reason}`)
       setConnected(false)
       wsRef.current = null
     }

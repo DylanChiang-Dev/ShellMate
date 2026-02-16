@@ -91,8 +91,12 @@ router.post('/groups', async (req, res) => {
 router.put('/groups/:id', async (req, res) => {
   try {
     const { id } = req.params
+    const updates = {}
     const { name, expanded } = req.body
-    const group = await profileService.updateGroup(id, { name, expanded })
+    if (name !== undefined) updates.name = name
+    if (expanded !== undefined) updates.expanded = expanded
+
+    const group = await profileService.updateGroup(id, updates)
     res.json(group)
   } catch (err) {
     res.status(500).json({ error: err.message })
