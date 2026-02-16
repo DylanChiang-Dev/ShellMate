@@ -1,3 +1,4 @@
+import { forwardRef, useImperativeHandle } from 'react'
 import { useTerminal } from '../hooks/useTerminal'
 
 interface TerminalProps {
@@ -5,11 +6,19 @@ interface TerminalProps {
   onDisconnect?: () => void
 }
 
-export default function Terminal({ profileId, onDisconnect }: TerminalProps) {
-  const { containerRef, connected, error } = useTerminal({
+export interface TerminalHandle {
+  sendInput: (data: string) => void
+}
+
+const Terminal = forwardRef<TerminalHandle, TerminalProps>(function Terminal({ profileId, onDisconnect }, ref) {
+  const { containerRef, connected, error, sendInput } = useTerminal({
     profileId,
     onDisconnect,
   })
+
+  useImperativeHandle(ref, () => ({
+    sendInput,
+  }), [sendInput])
 
   return (
     <div className="h-full w-full relative">
@@ -26,4 +35,6 @@ export default function Terminal({ profileId, onDisconnect }: TerminalProps) {
       <div ref={containerRef} className="h-full w-full" />
     </div>
   )
-}
+})
+
+export default Terminal

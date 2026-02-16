@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Server, Tab } from '../types'
-import Terminal from './Terminal'
+import Terminal, { TerminalHandle } from './Terminal'
 import { ServerPanel } from './ServerPanel'
 import { CommandPanel } from './CommandPanel'
 import { v4 as uuidv4 } from 'uuid'
@@ -11,6 +11,7 @@ export default function Dashboard() {
   const [tabs, setTabs] = useState<Tab[]>([])
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
   const [username, setUsername] = useState('')
+  const terminalRef = useRef<TerminalHandle>(null)
 
   useEffect(() => {
     const user = localStorage.getItem('username')
@@ -29,9 +30,9 @@ export default function Dashboard() {
   }
 
   const handleExecuteCommand = (command: string) => {
-    // For now, copy to clipboard - later we'll send via WebSocket
-    navigator.clipboard.writeText(command)
-    // TODO: Send command to active terminal via WebSocket
+    if (terminalRef.current) {
+      terminalRef.current.sendInput(command + '\r')
+    }
   }
 
   const closeTab = (tabId: string) => {
@@ -101,6 +102,7 @@ export default function Dashboard() {
           <div className="flex-1 bg-black">
             {activeTab ? (
               <Terminal
+                ref={terminalRef}
                 profileId={activeTab.profileId}
                 onDisconnect={() => closeTab(activeTab.id)}
               />

@@ -15,8 +15,7 @@
   "groups": [
     {
       "id": "default",
-      "name": "默认分组",
-      "expanded": true
+      "expanded": false
     }
   ]
 }

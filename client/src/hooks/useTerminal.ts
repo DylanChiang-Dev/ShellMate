@@ -219,5 +219,6 @@ export function useTerminal({ profileId, onDisconnect }: UseTerminalOptions) {
     error,
     connect,
     disconnect,
+    sendInput,
   }
 }
