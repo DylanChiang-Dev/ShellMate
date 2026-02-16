@@ -3,6 +3,12 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Login from './components/Login'
 import Dashboard from './components/Dashboard'
 
+// 禁用 React Router v7 升级警告
+const routerFuture = {
+  v7_startTransition: true,
+  v7_relativeSplatPath: true,
+}
+
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
 
@@ -26,7 +32,7 @@ function App() {
   }
 
   return (
-    <BrowserRouter>
+    <BrowserRouter future={routerFuture}>
       <Routes>
         <Route
           path="/login"
