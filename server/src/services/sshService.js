@@ -32,11 +32,6 @@ export function createSession(sessionId, profile, password) {
       readyTimeout: 30000,
       keepaliveInterval: 10000,
       tryKeyboard: true,
-      algorithms: {
-        serverHostKey: ['ssh-rsa', 'ssh-dss', 'ecdsa-sha2-nistp256', 'ssh-ed25519'],
-        kex: ['diffie-hellman-group1-sha1', 'ecdh-sha2-nistp256', 'ecdh-sha2-nistp384', 'ecdh-sha2-nistp521', 'diffie-hellman-group-exchange-sha256', 'diffie-hellman-group14-sha1'],
-        cipher: ['aes128-ctr', 'aes192-ctr', 'aes256-ctr', 'aes128-gcm', 'aes128-cbc', '3des-cbc']
-      },
       debug: (str) => console.log('SSH Debug:', str)
     })
     console.log(`Attempting SSH connection to ${profile.username}@${profile.host}:${port}`)
