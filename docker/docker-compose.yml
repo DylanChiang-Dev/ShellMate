@@ -11,6 +11,7 @@ services:
       - PORT=3000
       - JWT_SECRET=your-secret-key-change-in-production
       - ENCRYPTION_KEY=32-character-encryption-key!!
+      - DEFAULT_PASSWORD=your-admin-password
     volumes:
       - ../server/src/data:/app/server/src/data
     restart: unless-stopped

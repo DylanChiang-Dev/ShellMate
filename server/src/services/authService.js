@@ -18,12 +18,16 @@ export async function hashPassword(password) {
   return bcrypt.hash(password, 10)
 }
 
-export async function initializeDefaultUser(defaultPassword = 'admin123') {
+export async function initializeDefaultUser(defaultPassword) {
+  // 支持通过环境变量设置默认密码
+  const envPassword = process.env.DEFAULT_PASSWORD
+  const password = defaultPassword || envPassword || 'admin123'
+
   const auth = await getAuth()
   if (!auth.passwordHash || auth.passwordHash === '$2a$10$placeholder_hash_replace_on_first_run') {
-    auth.passwordHash = await hashPassword(defaultPassword)
+    auth.passwordHash = await hashPassword(password)
     await jsonfile.writeFile(authFile, auth, { spaces: 2 })
-    console.log('Default user initialized with password: admin123')
+    console.log(`Default user initialized with password: ${password}`)
   }
 }
 
