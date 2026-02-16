@@ -27,7 +27,7 @@ export const CommandModal: React.FC<CommandModalProps> = ({
       setFormData({
         name: command.name,
         command: command.command,
-        groupId: command.groupId,
+        groupId: command.groupId || '',
       });
     } else {
       setFormData({
@@ -59,7 +59,12 @@ export const CommandModal: React.FC<CommandModalProps> = ({
       ));
     };
 
-    return renderOptions(null, 0);
+    return (
+      <>
+        <option value="">Root (No Group)</option>
+        {renderOptions(null, 0)}
+      </>
+    );
   };
 
   return (

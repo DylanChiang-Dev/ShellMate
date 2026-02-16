@@ -193,6 +193,20 @@ export const CommandPanel: React.FC<CommandPanelProps> = ({ onExecute }) => {
       </div>
 
       <div className="flex-1 overflow-y-auto p-2">
+        {/* Render root level commands first */}
+        {commandsList
+          .filter(c => !c.groupId || c.groupId === 'default' || !groups.find(g => g.id === c.groupId))
+          .map(cmd => (
+            <div
+              key={cmd.id}
+              className="px-3 py-1.5 rounded hover:bg-gray-700 cursor-pointer flex items-center justify-between text-sm"
+              onClick={() => onExecute(cmd.command)}
+              onContextMenu={(e) => handleContextMenu(e, cmd)}
+            >
+              <span className="truncate">{cmd.name}</span>
+            </div>
+          ))}
+        {/* Render groups */}
         {renderGroup(null)}
       </div>
 

@@ -9,7 +9,15 @@ router.use(authMiddleware)
 router.get('/', async (req, res) => {
   try {
     const snippets = await snippetService.getSnippetsList()
-    res.json(snippets)
+    // Map to frontend field names: title → name, group → groupId
+    const mappedSnippets = snippets.map(s => ({
+      id: s.id,
+      name: s.title,
+      command: s.command,
+      groupId: s.group,
+      createdAt: s.createdAt
+    }))
+    res.json(mappedSnippets)
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -74,16 +82,20 @@ router.delete('/groups/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { title, command, group } = req.body
+    // Accept both old field names (title, group) and new field names (name, groupId)
+    const { title, command, group, name, groupId } = req.body
 
-    if (!title || !command) {
+    const snippetTitle = title || name
+    const snippetGroup = group || groupId
+
+    if (!snippetTitle || !command) {
       return res.status(400).json({ error: 'Title and command required' })
     }
 
     const snippet = await snippetService.addSnippet({
-      title,
+      title: snippetTitle,
       command,
-      group: group || 'default'
+      group: snippetGroup || 'default'
     })
 
     res.json(snippet)

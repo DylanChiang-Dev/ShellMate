@@ -71,5 +71,5 @@ export interface Command {
   id: string;
   name: string;
   command: string;
-  groupId: string;
+  groupId: string | null;
 }
