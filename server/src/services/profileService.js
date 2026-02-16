@@ -6,6 +6,7 @@ import crypto from 'crypto'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const profilesFile = path.join(__dirname, '../data/profiles.json')
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'default-32-char-encryption-key!!'
+const DEFAULT_GROUP_ID = 'default'
 
 function encrypt(text) {
   const iv = crypto.randomBytes(16)
@@ -87,6 +88,12 @@ export async function getGroups() {
 
 export async function addGroup(name) {
   const data = await getProfilesRaw()
+
+  // Check for duplicate group names
+  if (data.groups.some(g => g.name === name)) {
+    throw new Error('Group with this name already exists')
+  }
+
   const newGroup = {
     id: crypto.randomUUID(),
     name,
