@@ -11,7 +11,7 @@ export default function Dashboard() {
   const [tabs, setTabs] = useState<Tab[]>([])
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
   const [username, setUsername] = useState('')
-  const terminalRef = useRef<TerminalHandle>(null)
+  const terminalRefs = useRef<Record<string, TerminalHandle>>({})
 
   useEffect(() => {
     const user = localStorage.getItem('username')
@@ -30,8 +30,8 @@ export default function Dashboard() {
   }
 
   const handleExecuteCommand = (command: string) => {
-    if (terminalRef.current) {
-      terminalRef.current.sendInput(command + '\r')
+    if (activeTabId && terminalRefs.current[activeTabId]) {
+      terminalRefs.current[activeTabId].sendInput(command + '\r')
     }
   }
 
@@ -47,8 +47,6 @@ export default function Dashboard() {
     localStorage.removeItem('username')
     navigate('/login')
   }
-
-  const activeTab = tabs.find(t => t.id === activeTabId)
 
   return (
     <div className="h-screen flex flex-col">
@@ -77,11 +75,10 @@ export default function Dashboard() {
             {tabs.map((tab) => (
               <div
                 key={tab.id}
-                className={`flex items-center px-3 py-2 cursor-pointer ${
-                  activeTabId === tab.id
-                    ? 'bg-gray-700 text-white'
-                    : 'text-gray-400 hover:bg-gray-700'
-                }`}
+                className={`flex items-center px-3 py-2 cursor-pointer ${activeTabId === tab.id
+                  ? 'bg-gray-700 text-white'
+                  : 'text-gray-400 hover:bg-gray-700'
+                  }`}
                 onClick={() => setActiveTabId(tab.id)}
               >
                 <span>{tab.title}</span>
@@ -99,18 +96,36 @@ export default function Dashboard() {
           </div>
 
           {/* Terminal */}
-          <div className="flex-1 bg-black">
-            {activeTab ? (
-              <Terminal
-                ref={terminalRef}
-                profileId={activeTab.profileId}
-                onDisconnect={() => closeTab(activeTab.id)}
-              />
-            ) : (
+          <div className="flex-1 bg-black relative">
+            {tabs.length === 0 && (
               <div className="h-full flex items-center justify-center text-gray-400">
                 选择一个服务器开始连接
               </div>
             )}
+
+            {tabs.map(tab => (
+              <div
+                key={tab.id}
+                className="h-full w-full absolute inset-0"
+                style={{
+                  visibility: activeTabId === tab.id ? 'visible' : 'hidden',
+                  zIndex: activeTabId === tab.id ? 10 : 0
+                }}
+              >
+                <Terminal
+                  ref={(el) => {
+                    if (el) {
+                      terminalRefs.current[tab.id] = el
+                    } else {
+                      delete terminalRefs.current[tab.id]
+                    }
+                  }}
+                  profileId={tab.profileId}
+                  onDisconnect={() => closeTab(tab.id)}
+                  isActive={activeTabId === tab.id}
+                />
+              </div>
+            ))}
           </div>
         </div>
 

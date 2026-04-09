@@ -1,34 +1,218 @@
 # ShellMate
 
-ShellMate is a web-based SSH terminal and file manager.
+> 一個面向遠端伺服器管理情境的 Web-based SSH 工作台。
+>
+> ShellMate 將「主機清單管理、互動式終端操作、常用命令片段」整合到同一個瀏覽器介面中，目標是降低多台 Linux 主機維運時的切換成本，並提供一個可持續擴充的遠端管理系統原型。
 
-## Deployment with Docker Compose
+## 專案簡介
 
-To deploy ShellMate using Docker Compose, follow these steps:
+在日常的遠端伺服器管理流程中，使用者通常需要在多個工具之間切換，例如本機終端機、SSH client、筆記軟體、指令備忘錄，以及主機清單管理工具。這種工作流雖然可行，但在主機數量增加後，容易出現操作分散、重複輸入、設定不一致，以及維運知識難以整理的問題。
 
-### Prerequisites
+ShellMate 是我為這類情境開發的整合式工具。它以瀏覽器作為統一入口，將 SSH 連線、伺服器分組、命令片段管理與基本的登入驗證整合到同一個系統中。這個專案不只是功能導向的實作，也可以被視為一個面向遠端系統管理、人機互動與安全機制整合的工程研究原型。
 
-- Docker and Docker Compose installed on your server.
-- The `server/src/data` directory should contain your initial data files (`auth.json`, `profiles.json`, etc.) or backups.
-- The `server/.env` file should be configured with your environment variables (PORT, JWT_SECRET, etc.).
+## 我想解決的問題
 
-### Steps
+- 如何用更低的操作負擔管理多台遠端主機
+- 如何把常用維運命令從零散筆記，整理成可直接執行的結構化資源
+- 如何在維持部署簡單的前提下，提供可用的登入驗證、憑證保護與即時終端互動
+- 如何把原本分散的維運流程收斂成一個可擴充、可研究、可展示的系統原型
 
-1.  **Clone the repository** (or copy the files to your server).
-2.  **Configure environment**: Ensure `server/.env` exists and is populated.
-3.  **Start the service**:
-    ```bash
-    docker-compose up -d --build
-    ```
-4.  **Access the application**: Open your browser and navigate to `http://localhost:3000` (or your server's IP/domain).
+## 目前已完成的核心功能
 
-### Data Persistence
+### 1. Web SSH 互動式終端
 
-Data is persisted in `server/src/data` on the host machine. This directory is mounted into the container at `/app/server/src/data`.
-To back up your data, simply back up the `server/src/data` directory.
+- 使用瀏覽器直接建立 SSH 連線
+- 前端以 `xterm.js` 提供終端顯示與輸入互動
+- 後端透過 WebSocket 與 `ssh2` 建立即時雙向資料流
+- 支援多分頁終端操作，方便在多台主機之間切換
 
-### Stopping the Service
+### 2. 伺服器資料與分組管理
+
+- 可新增、編輯、刪除伺服器設定
+- 支援伺服器分組與展開狀態保存
+- 針對多主機情境提供更清楚的結構化管理方式
+
+### 3. 命令片段管理面板
+
+- 可新增、編輯、刪除常用命令
+- 支援分組整理，減少重複輸入與切換筆記的需求
+- 可直接將命令送入目前啟用的終端分頁執行
+
+### 4. 基本登入驗證與存取控制
+
+- 提供帳號密碼登入流程
+- 使用 JWT 進行 API 存取驗證
+- 將前端操作介面限制於已登入使用者
+
+### 5. 可部署的單機版系統
+
+- 已提供 Docker 與 Docker Compose 部署方式
+- 前後端可整合為單一服務對外提供
+- 適合作為個人維運工具、原型展示，或後續擴充的基礎版本
+
+## 系統設計與技術架構
+
+### 前端
+
+- React 18
+- TypeScript
+- Vite
+- Tailwind CSS
+- `xterm.js` 作為 Web Terminal 元件
+
+前端負責登入流程、主機與命令面板、終端分頁切換，以及與後端 REST API / WebSocket 的整合。
+
+### 後端
+
+- Node.js
+- Express
+- `ws`
+- `ssh2`
+- `jsonwebtoken`
+- `bcryptjs`
+
+後端提供三類核心能力：
+
+- REST API：處理登入、主機資料、命令片段與分組管理
+- WebSocket Terminal Channel：處理 SSH shell 的即時輸入輸出
+- WebSocket File Channel：已具備遠端檔案操作相關基礎模組，可作為後續功能延伸的基礎
+
+### 資料儲存
+
+- 目前採用 JSON 檔案作為輕量化資料儲存
+- 主機設定、登入資訊、命令片段均以本地檔案保存
+- 伺服器密碼會透過 `ENCRYPTION_KEY` 進行加密後寫入
+
+這種設計選擇的重點不是追求大規模系統，而是讓專案在原型階段保持低部署門檻、容易理解、容易展示，也方便後續替換為資料庫架構。
+
+## 工程亮點與實作取捨
+
+### 1. 以 WebSocket 串接即時 SSH 終端
+
+相較於單純的命令提交式介面，ShellMate 採用 WebSocket 與 `ssh2` 建立即時互動式 shell，讓使用者可以在瀏覽器中得到更接近原生終端機的體驗。這個設計也讓前端與後端之間的資料流模型更清楚，便於未來加入 session replay、審計紀錄或多人協作。
+
+### 2. 優先追求「完整可用」而非過度設計
+
+我在目前版本中選擇使用 JSON 檔案作為儲存層，而不是一開始就引入資料庫。這個取捨的好處是部署簡單、系統透明、開發迭代快，特別適合原型驗證與個人使用場景；代價則是多使用者、複雜查詢與高併發能力仍有待進一步擴充。
+
+### 3. 對安全性做了基礎但務實的處理
+
+- 密碼雜湊使用 `bcryptjs`
+- API 驗證使用 JWT
+- 主機密碼以對稱加密後再儲存
+- SSH 連線失敗時，後端會轉換成較易理解的錯誤訊息
+
+這些做法讓專案在原型階段具備基本安全保護，同時保留後續強化為更完整權限模型的空間。
+
+### 4. 面向擴充的模組拆分
+
+後端已將驗證、主機管理、命令片段管理、SSH session、WebSocket handler 等能力拆成獨立模組。這樣的結構使專案不只是「能跑」，也更容易被延伸成更完整的研究或產品型系統。
+
+## 這個專案反映的能力
+
+如果將 ShellMate 視為一個研究前的工程作品，它主要反映了我在以下幾個面向的能力：
+
+- 能從實際問題出發，定義明確的系統需求
+- 能完成前端、後端、即時通訊與部署整合，而不只停留在單點功能
+- 能在有限範圍內做合理的架構取捨，優先做出可運作、可驗證的系統
+- 能把系統設計保留在可擴充的狀態，為後續研究問題預留空間
+
+## 本地開發
+
+### 1. 啟動後端
 
 ```bash
-docker-compose down
+cd server
+npm install
+cp .env.example .env
+npm run dev
 ```
+
+### 2. 啟動前端
+
+```bash
+cd client
+npm install
+npm run dev
+```
+
+前端預設開在 `http://localhost:5176`，並透過 Vite proxy 轉發 `/api` 與 `/ws` 到後端 `http://localhost:3000`。
+
+## Docker Compose 部署
+
+### 前置需求
+
+- 已安裝 Docker 與 Docker Compose
+- 已準備 `server/.env`
+- `server/src/data` 目錄可用於保存登入資訊、主機資料與命令片段
+
+### 啟動方式
+
+```bash
+docker compose up -d --build
+```
+
+啟動後可從 `http://localhost:3000` 存取系統。
+
+### 停止服務
+
+```bash
+docker compose down
+```
+
+### 資料持久化
+
+目前資料會保存於主機上的 `server/src/data`，並透過 volume 掛載到容器內。因此備份這個目錄即可保留主要系統資料。
+
+## 環境變數
+
+可參考 `server/.env.example`：
+
+```env
+PORT=3000
+JWT_SECRET=your-secret-key-change-in-production
+ENCRYPTION_KEY=32-character-encryption-key-here
+```
+
+補充說明：
+
+- `JWT_SECRET` 應在正式部署時自行更換
+- `ENCRYPTION_KEY` 用於保護儲存在主機設定中的密碼資料
+- 系統也支援以 `DEFAULT_PASSWORD` 指定初始管理員密碼；若未設定，初始化時會使用預設值，因此部署後應立即更換
+
+## 專案結構
+
+```text
+ShellMate/
+├── client/                  # React + TypeScript 前端
+├── server/                  # Express + WebSocket + SSH 後端
+│   └── src/
+│       ├── routes/          # REST API
+│       ├── services/        # 業務邏輯與資料存取
+│       ├── ws/              # WebSocket handler
+│       └── data/            # JSON 資料儲存
+├── Dockerfile
+└── docker-compose.yml
+```
+
+## 目前限制
+
+- 目前以單使用者、單機部署情境為主
+- 儲存層仍以 JSON 檔案為核心，尚未導入資料庫
+- 自動化測試與更完整的安全稽核機制仍有加強空間
+- 遠端檔案管理相關模組已具備基礎實作，但尚未完全整合進主操作流程
+
+## 未來研究與延伸方向
+
+我認為這個專案後續可往以下方向發展：
+
+- 多使用者與角色權限控制
+- SSH session audit log 與操作回放
+- 具備上下文的命令推薦與維運知識輔助
+- 更完整的遠端檔案管理與線上編輯流程
+- 將儲存層從 JSON 遷移到更適合多使用者情境的資料庫系統
+- 針對遠端系統管理介面的可用性與安全性進行系統化研究
+
+## 結語
+
+ShellMate 對我而言，不只是把 SSH 放進瀏覽器，而是一次從真實維運需求出發，將前端互動、即時通訊、後端服務、安全處理與部署整合起來的完整工程實作。它同時也是一個具備研究延展性的系統原型，未來可以繼續往安全、協作、智慧化輔助與系統可用性等方向深化。

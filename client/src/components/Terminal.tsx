@@ -4,6 +4,7 @@ import { useTerminal } from '../hooks/useTerminal'
 interface TerminalProps {
   profileId: string | null
   onDisconnect?: () => void
+  isActive?: boolean
 }
 
 export interface TerminalHandle {

@@ -18,6 +18,7 @@ export const ServerPanel: React.FC<ServerPanelProps> = ({ onConnect }) => {
   const [editingServer, setEditingServer] = useState<Server | null>(null);
   const [groupModalOpen, setGroupModalOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<ServerGroup | null>(null);
+  const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -76,6 +77,7 @@ export const ServerPanel: React.FC<ServerPanelProps> = ({ onConnect }) => {
   const handleContextMenu = (e: React.MouseEvent, server: Server) => {
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY, server });
+    setSelectedServerId(server.id); // Also select on right click
   };
 
   const handleGroupContextMenu = (e: React.MouseEvent, group: ServerGroup) => {
@@ -197,9 +199,10 @@ export const ServerPanel: React.FC<ServerPanelProps> = ({ onConnect }) => {
                 {getServersByGroup(group.id).map(server => (
                   <div
                     key={server.id}
-                    className="px-3 py-2 rounded hover:bg-gray-700 cursor-pointer flex items-center justify-between"
+                    className={`px-3 py-2 rounded cursor-pointer flex items-center justify-between ${selectedServerId === server.id ? 'bg-gray-700' : 'hover:bg-gray-700/50'
+                      }`}
                     onContextMenu={(e) => handleContextMenu(e, server)}
-                    onClick={() => onConnect(server)}
+                    onClick={() => setSelectedServerId(server.id)}
                   >
                     <div>
                       <div className="font-medium">{server.name}</div>
